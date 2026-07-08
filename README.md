@@ -75,6 +75,13 @@ Two layers, and it matters which is which:
 
 Firestore layout: `leaderboards/{YYYY-MM}/scores/{uid}` (one document per player per month, holding the cumulative season total). Identity is a durable anonymous-auth `uid` (no login screen). The Firebase SDK is lazily, dynamically imported, so it's code-split into its own chunk and never downloaded when Firebase is off.
 
+### Deploying (Netlify / any static host)
+
+`npm run build` outputs a static site in `dist/` (config in [netlify.toml](netlify.toml)). Two gotchas that cause the leaderboard to show **Offline** in production:
+
+1. **Firebase config must be in the build.** `VITE_*` vars are inlined by Vite at *build* time and `.env` is gitignored, so a cloud build has no env. This app ships a committed fallback config in [src/services/firebase.ts](src/services/firebase.ts) (a Firebase *web* config is public by design — security is the Firestore rules, not secrecy), so it works out of the box. To point at a different project, set the `VITE_FIREBASE_*` vars in your host's build settings — they override the fallback.
+2. **Authorize your deployed domain in Firebase.** Anonymous sign-in is rejected on any domain not in the allow-list. In the Firebase console → **Authentication → Settings → Authorized domains**, add your site's domain (e.g. `your-site.netlify.app` and any custom domain). Without this, the live board stays Offline with an `auth/unauthorized-domain` error in the console. `localhost` is authorized by default, which is why dev works.
+
 ### Real 1v1 battles (next step)
 
 Battles currently use a local opponent simulation (`useOpponentSim`). To make them truly online, replace it with a Firestore match document both clients write answers into — `BattleMatch` already treats the opponent as an async score stream, so the UI doesn't change.
