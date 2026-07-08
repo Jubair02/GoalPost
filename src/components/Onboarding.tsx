@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { usePlayerStore } from "../store/playerStore";
-import { AVATAR_COLORS, AVATAR_EMOJIS } from "../data/opponents";
+import { AVATAR_COLORS, AVATAR_IMAGES } from "../data/opponents";
 import { Avatar } from "./Avatar";
 import { sfx } from "../lib/sound";
 
@@ -9,13 +9,13 @@ export function Onboarding() {
   const setName = usePlayerStore((s) => s.setName);
   const setAvatar = usePlayerStore((s) => s.setAvatar);
   const [draft, setDraft] = useState("");
-  const [emoji, setEmoji] = useState(AVATAR_EMOJIS[0]);
+  const [image, setImage] = useState(AVATAR_IMAGES[0].src);
   const [color, setColor] = useState(AVATAR_COLORS[0]);
 
   const submit = () => {
     const name = draft.trim();
     if (!name) return;
-    setAvatar({ emoji, color });
+    setAvatar({ emoji: "⚽", color, image });
     setName(name);
     sfx.win();
   };
@@ -43,7 +43,7 @@ export function Onboarding() {
         </p>
 
         <div className="mb-5 flex justify-center">
-          <Avatar avatar={{ emoji, color }} size={84} />
+          <Avatar avatar={{ emoji: "⚽", color, image }} size={84} />
         </div>
 
         <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-(--text-faint)" htmlFor="player-name">
@@ -60,19 +60,21 @@ export function Onboarding() {
           className="focus-ring mb-5 w-full rounded-2xl border border-(--border-strong) bg-(--surface) p-3.5 font-semibold outline-none placeholder:text-(--text-faint)"
         />
 
-        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-(--text-faint)">Badge</div>
-        <div className="mb-4 grid grid-cols-8 gap-1.5" role="radiogroup" aria-label="Avatar emoji">
-          {AVATAR_EMOJIS.map((e) => (
+        <div className="mb-2 text-xs font-bold uppercase tracking-wider text-(--text-faint)">Choose your legend</div>
+        <div className="mb-4 flex justify-center gap-2.5" role="radiogroup" aria-label="Avatar portrait">
+          {AVATAR_IMAGES.map((a) => (
             <button
-              key={e}
+              key={a.src}
               role="radio"
-              aria-checked={emoji === e}
-              onClick={() => { setEmoji(e); sfx.click(); }}
-              className={`focus-ring flex h-9 items-center justify-center rounded-xl border text-lg transition ${
-                emoji === e ? "border-(--color-pitch-400) bg-(--color-pitch-500)/15 scale-110" : "border-(--border) bg-(--surface)"
+              aria-checked={image === a.src}
+              aria-label={a.label}
+              title={a.label}
+              onClick={() => { setImage(a.src); sfx.click(); }}
+              className={`focus-ring h-14 w-14 overflow-hidden rounded-full border-2 transition ${
+                image === a.src ? "scale-110 border-(--color-pitch-400) shadow-[0_0_16px_-2px_var(--glow-pitch)]" : "border-(--border-strong) opacity-70 hover:opacity-100"
               }`}
             >
-              {e}
+              <img src={a.src} alt="" aria-hidden className="h-full w-full object-cover" style={{ objectPosition: "center 18%" }} />
             </button>
           ))}
         </div>

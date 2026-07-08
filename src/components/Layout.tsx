@@ -4,10 +4,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useSettingsStore } from "../store/settingsStore";
 import { usePlayerStore, useLevel } from "../store/playerStore";
 import { useToastStore } from "../store/toastStore";
+import { submitSeasonScore } from "../services/leaderboard";
+import { monthKey } from "../lib/daily";
 import { Avatar } from "./Avatar";
 import { ProgressRing } from "./ProgressRing";
+import { CountUp } from "./CountUp";
 import { ToastHost } from "./ToastHost";
 import { BuildCredit } from "./BuildCredit";
+import { PitchOverlay } from "./PitchOverlay";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: "🏠" },
@@ -28,6 +32,8 @@ export function Layout() {
   const avatar = usePlayerStore((s) => s.avatar);
   const coins = usePlayerStore((s) => s.coins);
   const registerLogin = usePlayerStore((s) => s.registerLogin);
+  const monthlyScore = usePlayerStore((s) => s.monthlyScore);
+  const leaderboardMonth = usePlayerStore((s) => s.leaderboardMonth);
   const push = useToastStore((s) => s.push);
   const level = useLevel();
   const location = useLocation();
@@ -35,6 +41,20 @@ export function Layout() {
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // Personalize the app accent to the player's chosen avatar colour.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--user-accent", avatar.color || "var(--color-pitch-400)");
+  }, [avatar.color]);
+
+  // Publish this player's cumulative season total to the global leaderboard
+  // whenever it changes (after any quiz, any mode). No-op when Firebase is off,
+  // and skipped for a stale total left over from a previous month.
+  useEffect(() => {
+    if (monthlyScore > 0 && leaderboardMonth === monthKey()) {
+      void submitSeasonScore(monthlyScore, name, avatar);
+    }
+  }, [monthlyScore, leaderboardMonth, name, avatar]);
 
   // Daily login reward, once per day on first load.
   useEffect(() => {
@@ -57,6 +77,7 @@ export function Layout() {
   return (
     <div className="min-h-dvh pb-24 md:pb-8">
       <div className="app-backdrop" aria-hidden />
+      <PitchOverlay />
       <ToastHost />
       <BuildCredit />
 
@@ -95,8 +116,8 @@ export function Layout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <span className="chip !border-(--color-gold)/30 font-mono text-(--color-gold)" title="Coins">
-              🪙 {coins.toLocaleString()}
+            <span className="chip led !border-(--color-gold)/30 text-(--color-gold)" title="Coins">
+              🪙 <CountUp to={coins} />
             </span>
             <button
               onClick={toggleSound}
@@ -115,7 +136,7 @@ export function Layout() {
               {theme === "dark" ? "☀️" : "🌙"}
             </button>
             <NavLink to="/profile" className="focus-ring flex items-center gap-2 rounded-full" aria-label="Your profile">
-              <ProgressRing progress={level.progress} size={46} stroke={3}>
+              <ProgressRing progress={level.progress} size={46} stroke={3} color="var(--user-accent)">
                 <Avatar avatar={avatar} size={36} />
               </ProgressRing>
               <span className="hidden text-left lg:block">

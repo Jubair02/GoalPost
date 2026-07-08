@@ -9,6 +9,8 @@ import { PageHeader } from "../components/PageHeader";
 import { DifficultyPicker } from "../components/DifficultyPicker";
 import { QuestionCard } from "../components/QuestionCard";
 import { ResultScreen } from "../components/ResultScreen";
+import { MediaBg } from "../components/MediaBg";
+import { IMG } from "../lib/assets";
 import { sfx } from "../lib/sound";
 
 type Stage = "setup" | "playing" | "done";
@@ -32,32 +34,45 @@ export function QuickPlayPage() {
       <PageHeader icon="⚡" title="Quick Play" subtitle="Random questions across every category. No stakes — just glory." />
       <AnimatePresence mode="wait">
         {stage === "setup" && (
-          <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -14 }} className="glass-strong mx-auto max-w-3xl rounded-3xl p-6 sm:p-8">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-(--text-faint)">Difficulty</h2>
-            <DifficultyPicker value={difficulty} onChange={setDifficulty} />
-
-            <h2 className="mt-7 mb-3 text-sm font-bold uppercase tracking-wider text-(--text-faint)">Questions</h2>
-            <div className="flex gap-3" role="radiogroup" aria-label="Number of questions">
-              {COUNTS.map((c) => (
-                <button
-                  key={c}
-                  role="radio"
-                  aria-checked={count === c}
-                  onClick={() => { setCount(c); sfx.click(); }}
-                  className={`focus-ring flex-1 rounded-2xl border p-4 font-mono text-xl font-bold transition ${
-                    count === c
-                      ? "border-(--color-pitch-400) bg-(--color-pitch-500)/12 text-(--color-pitch-300)"
-                      : "border-(--border-strong) bg-(--surface) text-(--text-dim) hover:border-(--color-pitch-600)"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
+          <motion.div key="setup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -14 }} className="glass-strong mx-auto max-w-3xl overflow-hidden rounded-3xl">
+            {/* Stadium hero */}
+            <div className="relative h-40 overflow-hidden sm:h-52">
+              <MediaBg src={IMG.stadium} focal="center 58%" scrim="bottom" />
+              <div className="relative flex h-full flex-col justify-end p-6">
+                <span className="text-xs font-bold uppercase tracking-widest text-(--color-pitch-300)">Match day</span>
+                <h2 className="text-2xl font-extrabold leading-tight text-white sm:text-3xl" style={{ fontFamily: "var(--font-display)" }}>
+                  Take your place in the stadium
+                </h2>
+              </div>
             </div>
 
-            <button onClick={start} className="btn-primary focus-ring mt-8 w-full py-4 text-lg">
-              Kick Off ⚽
-            </button>
+            <div className="p-6 sm:p-8">
+              <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-(--text-faint)">Difficulty</h2>
+              <DifficultyPicker value={difficulty} onChange={setDifficulty} />
+
+              <h2 className="mt-7 mb-3 text-sm font-bold uppercase tracking-wider text-(--text-faint)">Questions</h2>
+              <div className="flex gap-3" role="radiogroup" aria-label="Number of questions">
+                {COUNTS.map((c) => (
+                  <button
+                    key={c}
+                    role="radio"
+                    aria-checked={count === c}
+                    onClick={() => { setCount(c); sfx.click(); }}
+                    className={`focus-ring flex-1 rounded-2xl border p-4 font-mono text-xl font-bold transition ${
+                      count === c
+                        ? "border-(--color-pitch-400) bg-(--color-pitch-500)/12 text-(--color-pitch-300)"
+                        : "border-(--border-strong) bg-(--surface) text-(--text-dim) hover:border-(--color-pitch-600)"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+
+              <button onClick={start} className="btn-primary focus-ring mt-8 w-full py-4 text-lg">
+                Kick Off ⚽
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -111,6 +126,19 @@ function Match({
 
   return (
     <div className="mx-auto max-w-3xl">
+      {/* Immersive stadium backdrop — dimmed & blurred so the glass card stays crisp. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-[1]">
+        <img
+          src={IMG.stadium}
+          alt=""
+          className="h-full w-full object-cover"
+          style={{ filter: "blur(3px)", transform: "scale(1.06)" }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(180deg, rgba(4,10,7,0.82) 0%, rgba(4,10,7,0.9) 55%, rgba(4,10,7,0.95) 100%)" }}
+        />
+      </div>
       <ScoreStrip score={quiz.score} index={quiz.index} total={quiz.total} correct={quiz.correctCount} />
       <AnimatePresence mode="wait">
         <QuestionCard

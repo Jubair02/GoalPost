@@ -1,18 +1,20 @@
 /**
- * Global daily leaderboard.
+ * Global season leaderboard.
  *
- * When Firebase is configured, scores are written to and streamed from
- * Firestore in real time (`onSnapshot`), so every player sees the same board
- * updating live. When it isn't, we transparently fall back to the deterministic
- * local simulation in lib/daily so the app is fully playable offline.
+ * Rankings accumulate each player's daily-challenge scores across a calendar
+ * month, then reset for the next season. When Firebase is configured, season
+ * totals are written to and streamed from Firestore in real time (onSnapshot),
+ * so every player sees the same board updating live. When it isn't, we fall
+ * back to the deterministic local simulation in lib/daily so the app is fully
+ * playable offline.
  *
- * Firestore layout:  leaderboards/{YYYY-MM-DD}/scores/{uid}
+ * Firestore layout:  leaderboards/{YYYY-MM}/scores/{uid}
  */
 import type { LeaderboardEntry, PlayerAvatar } from "../types";
-import { dailyLeaderboard, todayKey } from "../lib/daily";
+import { monthKey } from "../lib/daily";
 import { firebaseEnabled, getFirebase } from "./firebase";
 
-export interface DailyScoreDoc {
+export interface SeasonScoreDoc {
   name: string;
   avatar: PlayerAvatar;
   country?: string;
@@ -25,23 +27,23 @@ export function leaderboardIsLive(): boolean {
   return firebaseEnabled;
 }
 
-/** Submit (or overwrite) the player's score for the given day. */
-export async function submitDailyScore(
-  score: number,
+/** Publish the player's cumulative season total for the current month. */
+export async function submitSeasonScore(
+  total: number,
   name: string,
   avatar: PlayerAvatar,
   country = "⭐",
-  key = todayKey()
+  key = monthKey()
 ): Promise<void> {
   if (!firebaseEnabled) return;
   try {
     const { db, uid } = await getFirebase();
     const { doc, getDoc, setDoc } = await import("firebase/firestore");
     const ref = doc(db, "leaderboards", key, "scores", uid);
-    // Keep the player's best score for the day.
+    // A season total only ever grows — never overwrite a higher value with a lower one.
     const existing = await getDoc(ref);
-    if (existing.exists() && (existing.data() as DailyScoreDoc).score >= score) return;
-    const payload: DailyScoreDoc = { name: name || "Anonymous", avatar, country, score, updatedAt: Date.now() };
+    if (existing.exists() && (existing.data() as SeasonScoreDoc).score >= total) return;
+    const payload: SeasonScoreDoc = { name: name || "Anonymous", avatar, country, score: total, updatedAt: Date.now() };
     await setDoc(ref, payload);
   } catch (err) {
     // Never let a leaderboard write break the play flow.
@@ -50,14 +52,14 @@ export async function submitDailyScore(
 }
 
 /**
- * Subscribe to the live top-N daily leaderboard. The callback fires on every
+ * Subscribe to the live top-N season leaderboard. The callback fires on every
  * change. Returns an unsubscribe function. When Firebase is off, returns a
  * no-op and never fires — callers should use the simulated board instead.
  */
-export function subscribeDailyLeaderboard(
+export function subscribeSeasonLeaderboard(
   onUpdate: (entries: LeaderboardEntry[]) => void,
   onError?: (err: unknown) => void,
-  key = todayKey(),
+  key = monthKey(),
   top = 50
 ): () => void {
   if (!firebaseEnabled) return () => {};
@@ -75,7 +77,7 @@ export function subscribeDailyLeaderboard(
         q,
         (snap) => {
           const entries: LeaderboardEntry[] = snap.docs.map((d, i) => {
-            const data = d.data() as DailyScoreDoc;
+            const data = d.data() as SeasonScoreDoc;
             return {
               rank: i + 1,
               name: data.name,
@@ -104,11 +106,24 @@ export function subscribeDailyLeaderboard(
   };
 }
 
-/** Fallback board used when Firebase is disabled. */
-export function simulatedDailyBoard(
-  playerScore: number | null,
-  name: string,
-  avatar: PlayerAvatar
-): LeaderboardEntry[] {
-  return dailyLeaderboard(playerScore, name || "You", avatar).slice(0, 20);
+/**
+ * The player's live standing in the current season (rank + total entrants),
+ * read once from Firestore. Returns null when Firebase is unavailable or the
+ * player has no entry yet this month.
+ */
+export async function getSeasonStanding(
+  key = monthKey()
+): Promise<{ rank: number; total: number } | null> {
+  if (!firebaseEnabled) return null;
+  try {
+    const { db, uid } = await getFirebase();
+    const { collection, query, orderBy, getDocs } = await import("firebase/firestore");
+    const snap = await getDocs(query(collection(db, "leaderboards", key, "scores"), orderBy("score", "desc")));
+    const ids = snap.docs.map((d) => d.id);
+    const idx = ids.indexOf(uid);
+    if (idx < 0) return { rank: 0, total: ids.length };
+    return { rank: idx + 1, total: ids.length };
+  } catch {
+    return null;
+  }
 }

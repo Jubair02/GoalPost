@@ -1,11 +1,15 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { usePlayerStore, useLevel, categoryAccuracy } from "../store/playerStore";
 import { CATEGORIES } from "../data/categories";
 import { ACHIEVEMENTS } from "../data/achievements";
-import { OPPONENTS } from "../data/opponents";
+import { getSeasonStanding, leaderboardIsLive } from "../services/leaderboard";
 import { PageHeader } from "../components/PageHeader";
 import { CountUp } from "../components/CountUp";
+import { AchievementBadge } from "../components/AchievementBadge";
+import { RadarChart } from "../components/charts/RadarChart";
+import { FormGuide, type FormResult } from "../components/charts/FormGuide";
+import { Sparkline } from "../components/charts/Sparkline";
 
 export function StatsPage() {
   const p = usePlayerStore();
@@ -16,16 +20,33 @@ export function StatsPage() {
   const versusGames = p.wins + p.losses + p.draws;
   const winRate = versusGames > 0 ? Math.round((p.wins / versusGames) * 100) : 0;
 
-  // Simulated global rank: XP measured against the AI ladder.
-  const globalRank = useMemo(() => {
-    const ladder = OPPONENTS.map((o) => Math.round(o.skill * 30000));
-    return ladder.filter((s) => s > p.xp).length + 1;
-  }, [p.xp]);
+  // Real global standing in this season, read from the shared leaderboard.
+  const [standing, setStanding] = useState<{ rank: number; total: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getSeasonStanding().then((s) => alive && setStanding(s));
+    return () => {
+      alive = false;
+    };
+  }, [p.monthlyScore]);
+
+  const rankValue = standing && standing.rank > 0 ? `#${standing.rank}` : "—";
+  const rankSub = standing
+    ? standing.rank > 0
+      ? `of ${standing.total} this season`
+      : "play to rank"
+    : leaderboardIsLive()
+      ? "loading…"
+      : "offline";
 
   const playedCategories = CATEGORIES
     .map((c) => ({ meta: c, perf: p.categoryPerformance[c.id], acc: categoryAccuracy(p.categoryPerformance, c.id) }))
     .filter((c) => c.perf && c.perf.played > 0)
     .sort((a, b) => (b.acc ?? 0) - (a.acc ?? 0));
+
+  const radarData = playedCategories.slice(0, 8).map((c) => ({ label: c.meta.name, icon: c.meta.icon, value: c.acc ?? 0 }));
+  const formResults = p.matchHistory.filter((m) => m.result !== "solo").slice(0, 12).map((m) => m.result as FormResult);
+  const scoreTrend = [...p.matchHistory].slice(0, 12).reverse().map((m) => m.score);
 
   return (
     <div>
@@ -37,7 +58,7 @@ export function StatsPage() {
         <Stat label="Win Rate" value={<span>{winRate}%</span>} icon="🏅" sub={`${p.wins}W · ${p.losses}L · ${p.draws}D`} />
         <Stat label="Accuracy" value={<span>{accuracy}%</span>} icon="🎯" sub={`${p.totalCorrect}/${p.totalAnswered}`} />
         <Stat label="Avg Response" value={<span>{avgTime}s</span>} icon="⏱️" />
-        <Stat label="Global Rank" value={<span>#{globalRank}</span>} icon="🌍" sub="XP ladder" />
+        <Stat label="Global Rank" value={<span>{rankValue}</span>} icon="🌍" sub={rankSub} />
         <Stat label="Best Score" value={<CountUp to={p.bestScore} />} icon="⭐" />
       </section>
 
@@ -48,6 +69,12 @@ export function StatsPage() {
           {playedCategories.length === 0 ? (
             <p className="text-sm text-(--text-dim)">Play some quizzes to see your category breakdown.</p>
           ) : (
+            <>
+              {radarData.length >= 3 && (
+                <div className="mb-5">
+                  <RadarChart data={radarData} />
+                </div>
+              )}
             <ul className="flex flex-col gap-3">
               {playedCategories.map(({ meta, perf, acc }, i) => (
                 <li key={meta.id}>
@@ -79,10 +106,20 @@ export function StatsPage() {
                 </li>
               ))}
             </ul>
+            </>
           )}
         </section>
 
         <div className="flex flex-col gap-6">
+          {/* Recent form */}
+          <section className="glass rounded-3xl p-5 sm:p-6" aria-label="Recent form">
+            <h2 className="mb-4 text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>📈 Recent Form</h2>
+            <div className="mb-2 text-xs font-bold uppercase tracking-wider text-(--text-faint)">Head-to-head (latest first)</div>
+            <FormGuide results={formResults} />
+            <div className="mt-5 mb-1 text-xs font-bold uppercase tracking-wider text-(--text-faint)">Score trend</div>
+            <Sparkline values={scoreTrend} />
+          </section>
+
           {/* Records */}
           <section className="glass rounded-3xl p-5 sm:p-6" aria-label="Personal bests">
             <h2 className="mb-4 text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>🏔️ Personal Bests</h2>
@@ -102,19 +139,12 @@ export function StatsPage() {
               <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>🏅 Achievements</h2>
               <span className="chip">{p.achievements.length}/{ACHIEVEMENTS.length}</span>
             </div>
-            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+            <div className="grid grid-cols-5 justify-items-center gap-3 sm:grid-cols-10">
               {ACHIEVEMENTS.map((a) => {
                 const unlocked = p.achievements.includes(a.id);
                 return (
-                  <div
-                    key={a.id}
-                    title={`${a.name} — ${a.description}`}
-                    aria-label={`${a.name}: ${unlocked ? "unlocked" : "locked"}`}
-                    className={`flex aspect-square items-center justify-center rounded-2xl border text-xl ${
-                      unlocked ? "border-(--color-gold)/50 bg-(--color-gold)/10" : "border-(--border) bg-(--surface) opacity-35 grayscale"
-                    }`}
-                  >
-                    {a.icon}
+                  <div key={a.id} title={`${a.name} — ${a.description}`}>
+                    <AchievementBadge src={a.badge} tier={a.tier} unlocked={unlocked} size={44} alt={`${a.name}: ${unlocked ? "unlocked" : "locked"}`} />
                   </div>
                 );
               })}
@@ -127,7 +157,11 @@ export function StatsPage() {
       <section className="glass mt-6 rounded-3xl p-5 sm:p-6" aria-label="Match history">
         <h2 className="mb-4 text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>📜 Match History</h2>
         {p.matchHistory.length === 0 ? (
-          <p className="text-sm text-(--text-dim)">No matches yet — hit Quick Play to get started.</p>
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+            <span className="text-4xl" aria-hidden>📋</span>
+            <p className="text-sm font-semibold">No matches played yet</p>
+            <p className="text-xs text-(--text-dim)">Hit Quick Play to record your first result.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">

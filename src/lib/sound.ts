@@ -54,4 +54,29 @@ export const sfx = {
   levelUp() {
     [440, 554, 659, 880, 1109].forEach((f, i) => tone(f, 200, "triangle", 0.11, i * 90));
   },
+  /** Filtered noise swell — a stadium crowd roar for big wins. */
+  roar() {
+    if (!useSettingsStore.getState().soundOn) return;
+    const ac = audio();
+    if (!ac) return;
+    const dur = 1.6;
+    const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * dur), ac.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    const filter = ac.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 700;
+    filter.Q.value = 0.7;
+    const gain = ac.createGain();
+    const t0 = ac.currentTime;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.4);
+    gain.gain.exponentialRampToValueAtTime(0.08, t0 + 0.9);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter).connect(gain).connect(ac.destination);
+    src.start(t0);
+    src.stop(t0 + dur);
+  },
 };

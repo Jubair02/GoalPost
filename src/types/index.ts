@@ -100,6 +100,8 @@ export interface AchievementDef {
   name: string;
   description: string;
   icon: string;
+  /** Badge medallion image (public/assets URL). */
+  badge: string;
   tier: "bronze" | "silver" | "gold" | "legend";
   xpReward: number;
 }
@@ -107,6 +109,8 @@ export interface AchievementDef {
 export interface PlayerAvatar {
   emoji: string;
   color: string;
+  /** Optional portrait image (public/assets URL). Takes precedence over emoji. */
+  image?: string;
 }
 
 export interface PlayerState {
@@ -137,6 +141,10 @@ export interface PlayerState {
   dailyChallengeScore: number;
   /** All-time best daily challenge score, across every day played. */
   dailyChallengeBest: number;
+  /** Month (YYYY-MM) the running season total belongs to; null before first play. */
+  leaderboardMonth: string | null;
+  /** Cumulative daily-challenge score for the current season/month — the leaderboard value. */
+  monthlyScore: number;
   tournamentsWon: number;
   battlesPlayed: number;
   createdAt: string;

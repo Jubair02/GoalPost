@@ -1,12 +1,30 @@
 import { mulberry32, buildQuiz } from "./quizEngine";
-import { OPPONENTS } from "../data/opponents";
-import type { LeaderboardEntry, PlayerAvatar, Question } from "../types";
+import type { Question } from "../types";
 
 export function todayKey(date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+/** Season key — the leaderboard partitions and resets by calendar month. */
+export function monthKey(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+/** e.g. "July 2026" from a YYYY-MM key. */
+export function monthLabel(key = monthKey()): string {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleString(undefined, { month: "long", year: "numeric" });
+}
+
+/** Whole days remaining until the season resets (start of next month). */
+export function daysUntilNextMonth(now = new Date()): number {
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+  return Math.max(1, Math.ceil((next.getTime() - now.getTime()) / 86_400_000));
 }
 
 export function dateSeed(key: string): number {
@@ -32,31 +50,3 @@ export function msUntilNextDaily(): number {
   return next.getTime() - now.getTime();
 }
 
-/**
- * Deterministic simulated global leaderboard for the day. The same for every
- * visit within a day; the player's entry is merged in when they have a score.
- */
-export function dailyLeaderboard(
-  playerScore: number | null,
-  playerName: string,
-  playerAvatar: PlayerAvatar,
-  key = todayKey()
-): LeaderboardEntry[] {
-  const random = mulberry32(dateSeed(key) ^ 0x9e3779b9);
-  const entries = OPPONENTS.map((o) => ({
-    name: o.name,
-    avatar: o.avatar,
-    country: o.country,
-    score: Math.round(1100 + random() * 2100 * o.skill),
-  }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 20);
-
-  if (playerScore !== null) {
-    entries.push({ name: playerName, avatar: playerAvatar, country: "⭐", score: playerScore });
-  }
-
-  return entries
-    .sort((a, b) => b.score - a.score)
-    .map((e, i) => ({ ...e, rank: i + 1, isPlayer: playerScore !== null && e.name === playerName }));
-}

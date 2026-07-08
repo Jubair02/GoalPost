@@ -1,14 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LeaderboardEntry, QuizResult } from "../types";
-import { buildDailyQuiz, msUntilNextDaily, todayKey } from "../lib/daily";
+import { buildDailyQuiz, msUntilNextDaily, todayKey, monthKey, monthLabel, daysUntilNextMonth } from "../lib/daily";
 import { coinsFromScore, xpFromScore } from "../lib/quizEngine";
-import {
-  leaderboardIsLive,
-  simulatedDailyBoard,
-  submitDailyScore,
-  subscribeDailyLeaderboard,
-} from "../services/leaderboard";
+import { leaderboardIsLive, subscribeSeasonLeaderboard } from "../services/leaderboard";
 import { useQuiz } from "../hooks/useQuiz";
 import { usePlayerStore } from "../store/playerStore";
 import { useOutcomeToasts } from "../hooks/useOutcomeToasts";
@@ -22,50 +17,42 @@ import { ScoreStrip } from "./QuickPlayPage";
 import { sfx } from "../lib/sound";
 
 /**
- * Live leaderboard when Firebase is configured (streams via onSnapshot),
+ * Live season leaderboard when Firebase is configured (streams via onSnapshot),
  * deterministic local simulation otherwise. The player's own entry is merged
- * from their latest score so it shows immediately even before the write echoes.
+ * from their season total so it shows immediately even before the write echoes.
  */
-function useDailyLeaderboard(
+function useSeasonLeaderboard(
   playerScore: number | null,
   name: string,
   avatar: { emoji: string; color: string }
-): { entries: LeaderboardEntry[]; loading: boolean; live: boolean } {
+): { entries: LeaderboardEntry[]; loading: boolean; live: boolean; available: boolean } {
   const configured = leaderboardIsLive();
   const [remote, setRemote] = useState<LeaderboardEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [simLoading, setSimLoading] = useState(true);
   const live = configured && !failed;
 
   useEffect(() => {
     if (!configured) return;
-    const unsub = subscribeDailyLeaderboard(
+    const unsub = subscribeSeasonLeaderboard(
       (entries) => setRemote(entries),
-      () => setFailed(true) // Firebase unreachable/misconfigured → fall back to demo board.
+      () => setFailed(true)
     );
     return unsub;
   }, [configured]);
 
-  useEffect(() => {
-    if (live) return;
-    const t = setTimeout(() => setSimLoading(false), 700);
-    return () => clearTimeout(t);
-  }, [live]);
+  // Real players only — no simulated entries. When the backend is unavailable
+  // the board is simply empty rather than showing placeholders.
+  if (!live) return { entries: [], loading: false, live: false, available: false };
+  if (remote === null) return { entries: [], loading: true, live: true, available: true };
 
-  if (!live) {
-    return { entries: simulatedDailyBoard(playerScore, name, avatar), loading: simLoading, live };
-  }
-
-  if (remote === null) return { entries: [], loading: true, live };
-
-  // Ensure the player sees their own score instantly even if the write is in flight.
+  // Ensure the player sees their own row instantly even if the write is in flight.
   let entries = remote;
   if (playerScore !== null && !remote.some((e) => e.isPlayer)) {
     entries = [...remote, { rank: 0, name: name || "You", avatar, country: "⭐", score: playerScore, isPlayer: true }]
       .sort((a, b) => b.score - a.score)
       .map((e, i) => ({ ...e, rank: i + 1 }));
   }
-  return { entries, loading: false, live };
+  return { entries, loading: false, live: true, available: true };
 }
 
 function useCountdown() {
@@ -100,18 +87,23 @@ function DailyLobby({ alreadyDone, result, onStart }: { alreadyDone: boolean; re
   const dailyBest = usePlayerStore((s) => s.dailyChallengeBest);
   const dailyScore = usePlayerStore((s) => s.dailyChallengeScore);
   const lastDaily = usePlayerStore((s) => s.lastDailyChallengeDate);
+  const leaderboardMonth = usePlayerStore((s) => s.leaderboardMonth);
+  const monthlyScore = usePlayerStore((s) => s.monthlyScore);
 
   const playedToday = alreadyDone || result !== null;
-  // The leaderboard reflects TODAY's score, never the all-time best — otherwise
-  // the player's row and their "best" line disagree after a lower-scoring day.
+  // Today's single-day score, shown as the day's contribution to the season.
   const todayStored = lastDaily === todayKey() && Number.isFinite(dailyScore) ? dailyScore : null;
-  const playerScore = playedToday ? (result?.score ?? todayStored) : null;
+  const todayScore = result?.score ?? todayStored ?? 0;
 
-  const { entries: board, loading: boardLoading, live } = useDailyLeaderboard(playerScore, name || "You", avatar);
+  // The leaderboard ranks by the running SEASON total (this month's cumulative).
+  const seasonTotal = leaderboardMonth === monthKey() ? monthlyScore : 0;
+  const playerScore = seasonTotal > 0 ? seasonTotal : null;
+
+  const { entries: board, loading: boardLoading, live, available } = useSeasonLeaderboard(playerScore, name || "You", avatar);
   const playerEntry = board.find((e) => e.isPlayer);
-  // Authoritative "today" score for display: the live board row if present,
-  // else the local value. Guarantees the completed box matches the board row.
-  const displayScore = playerEntry?.score ?? playerScore ?? 0;
+  // Authoritative season total for display: the live board row if present, else local.
+  const displaySeason = playerEntry?.score ?? playerScore ?? 0;
+  const seasonEndsInDays = daysUntilNextMonth();
 
   return (
     <div>
@@ -141,16 +133,19 @@ function DailyLobby({ alreadyDone, result, onStart }: { alreadyDone: boolean; re
           <ul className="relative mt-4 flex flex-col gap-2 text-sm text-white/85">
             <li>⚽ 10 curated questions — same for everyone</li>
             <li>✨ 1.5× XP bonus on everything you score</li>
-            <li>🏆 Global leaderboard resets at midnight</li>
-            <li>🎯 One attempt per day — make it count</li>
+            <li>🏆 Scores stack all month — season resets {seasonEndsInDays === 1 ? "tomorrow" : `in ${seasonEndsInDays} days`}</li>
+            <li>🎯 One attempt per day — play daily to climb</li>
           </ul>
 
           {playedToday ? (
             <div className="relative mt-6 rounded-2xl border border-(--color-pitch-500)/50 bg-black/40 p-4 text-center backdrop-blur-sm">
               <div className="text-sm font-semibold text-(--color-pitch-300)">✅ Completed today</div>
               <div className="mt-1 text-xs text-white/75">
-                {playerEntry ? `Rank #${playerEntry.rank} · ` : ""}
-                <span className="font-mono text-(--color-volt)">{displayScore.toLocaleString()}</span> pts today
+                +<span className="font-mono text-(--color-volt)">{todayScore.toLocaleString()}</span> pts today
+              </div>
+              <div className="mt-1 text-xs text-white/75">
+                Season total{playerEntry ? ` · Rank #${playerEntry.rank}` : ""}:{" "}
+                <span className="font-mono text-(--color-volt)">{displaySeason.toLocaleString()}</span>
               </div>
               <div className="mt-1 font-mono text-xs text-white/50">Next challenge in {countdown}</div>
             </div>
@@ -159,34 +154,44 @@ function DailyLobby({ alreadyDone, result, onStart }: { alreadyDone: boolean; re
               Play Today's Challenge
             </button>
           )}
-          {/* All-time stat — clearly distinct from today's leaderboard score above. */}
-          {dailyBest > 0 && dailyBest > displayScore && (
+          {/* All-time single-day best — distinct from the cumulative season total. */}
+          {dailyBest > 0 && (
             <p className="relative mt-3 text-center text-xs text-white/60">
-              All-time daily best: <span className="font-mono text-(--color-volt)">{dailyBest.toLocaleString()}</span>
+              Best single day: <span className="font-mono text-(--color-volt)">{dailyBest.toLocaleString()}</span>
             </p>
           )}
         </motion.section>
 
         <section className="glass rounded-3xl p-5 sm:p-6 lg:col-span-3" aria-label="Global leaderboard">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>🌍 Global Leaderboard</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>🏆 Season Leaderboard</h2>
+              <p className="text-xs text-(--text-faint)">
+                {monthLabel()} · resets in {seasonEndsInDays === 1 ? "1 day" : `${seasonEndsInDays} days`}
+              </p>
+            </div>
             {live ? (
               <span className="chip !border-(--color-pitch-500)/40 text-(--color-pitch-300)" title="Live real-time leaderboard">
                 <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-(--color-pitch-400)" aria-hidden />
                 LIVE
               </span>
             ) : (
-              <span className="chip" title="Offline demo board — configure Firebase to go live">Demo</span>
+              <span className="chip !border-(--color-danger)/40 text-(--color-danger)" title="Leaderboard offline">Offline</span>
             )}
           </div>
           <div className="max-h-[520px] overflow-y-auto pr-1">
-            {!boardLoading && board.length === 0 ? (
+            {!available ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                <span className="text-3xl" aria-hidden>📡</span>
+                <p className="text-sm text-(--text-dim)">Leaderboard offline — reconnect to see live global rankings.</p>
+              </div>
+            ) : !boardLoading && board.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
                 <span className="text-3xl" aria-hidden>🏁</span>
-                <p className="text-sm text-(--text-dim)">No scores yet today — be the first on the board!</p>
+                <p className="text-sm text-(--text-dim)">No players on the board yet — be the first this season!</p>
               </div>
             ) : (
-              <LeaderboardList entries={board.slice(0, 20)} loading={boardLoading} />
+              <LeaderboardList entries={board.slice(0, 20)} loading={boardLoading} player={playerEntry} />
             )}
           </div>
         </section>
@@ -200,8 +205,6 @@ function DailyMatch({ onFinish }: { onFinish: (r: QuizResult) => void }) {
   const quiz = useQuiz(questions, "medium");
   const applyResult = usePlayerStore((s) => s.applyResult);
   const markDailyDone = usePlayerStore((s) => s.markDailyDone);
-  const name = usePlayerStore((s) => s.name);
-  const avatar = usePlayerStore((s) => s.avatar);
   const notify = useOutcomeToasts();
   const [result, setResult] = useState<QuizResult | null>(null);
 
@@ -223,8 +226,8 @@ function DailyMatch({ onFinish }: { onFinish: (r: QuizResult) => void }) {
     setResult(r);
     markDailyDone(r.score);
     notify(applyResult(r));
-    // Publish to the global real-time leaderboard (no-op when Firebase is off).
-    void submitDailyScore(r.score, name, avatar);
+    // The season total is published to the global leaderboard centrally in Layout
+    // (fires whenever monthlyScore changes, for every mode).
   }, [quiz.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (result) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnswerRecord, Difficulty, Question } from "../types";
 import { DIFFICULTY_MAP, scoreAnswer } from "../lib/quizEngine";
 import { sfx } from "../lib/sound";
+import { haptics } from "../lib/haptics";
 
 export type QuizPhase = "question" | "reveal" | "done";
 
@@ -87,6 +88,7 @@ export function useQuiz(questions: Question[], difficulty: Difficulty): QuizStat
 
       if (correct) {
         sfx.correct();
+        haptics.correct();
         setScore((s) => s + points);
         setCorrectCount((c) => c + 1);
         setStreak((st) => {
@@ -96,6 +98,7 @@ export function useQuiz(questions: Question[], difficulty: Difficulty): QuizStat
         });
       } else {
         sfx.wrong();
+        haptics.wrong();
         setStreak(0);
       }
     },

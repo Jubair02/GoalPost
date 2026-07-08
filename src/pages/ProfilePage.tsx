@@ -2,10 +2,11 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { usePlayerStore, useLevel } from "../store/playerStore";
 import { ACHIEVEMENTS, TIER_COLORS } from "../data/achievements";
-import { AVATAR_COLORS, AVATAR_EMOJIS } from "../data/opponents";
+import { AVATAR_COLORS, AVATAR_IMAGES } from "../data/opponents";
 import { PageHeader } from "../components/PageHeader";
 import { Avatar } from "../components/Avatar";
 import { ProgressRing } from "../components/ProgressRing";
+import { AchievementBadge } from "../components/AchievementBadge";
 import { sfx } from "../lib/sound";
 
 export function ProfilePage() {
@@ -36,7 +37,7 @@ export function ProfilePage() {
           aria-label="Player card"
         >
           <div className="flex justify-center">
-            <ProgressRing progress={level.progress} size={128} stroke={6} label="Level progress">
+            <ProgressRing progress={level.progress} size={128} stroke={6} color="var(--user-accent)" label="Level progress">
               <Avatar avatar={p.avatar} size={104} />
             </ProgressRing>
           </div>
@@ -87,19 +88,21 @@ export function ProfilePage() {
 
           {/* Avatar customization */}
           <div className="mt-6 text-left">
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-(--text-faint)">Badge</h3>
-            <div className="grid grid-cols-8 gap-1.5" role="radiogroup" aria-label="Avatar emoji">
-              {AVATAR_EMOJIS.map((e) => (
+            <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-(--text-faint)">Choose your legend</h3>
+            <div className="flex flex-wrap gap-2.5" role="radiogroup" aria-label="Avatar portrait">
+              {AVATAR_IMAGES.map((a) => (
                 <button
-                  key={e}
+                  key={a.src}
                   role="radio"
-                  aria-checked={p.avatar.emoji === e}
-                  onClick={() => { p.setAvatar({ ...p.avatar, emoji: e }); sfx.click(); }}
-                  className={`focus-ring flex h-9 items-center justify-center rounded-xl border text-lg transition ${
-                    p.avatar.emoji === e ? "border-(--color-pitch-400) bg-(--color-pitch-500)/15 scale-110" : "border-(--border) bg-(--surface)"
+                  aria-checked={p.avatar.image === a.src}
+                  aria-label={a.label}
+                  title={a.label}
+                  onClick={() => { p.setAvatar({ ...p.avatar, image: a.src }); sfx.click(); }}
+                  className={`focus-ring h-14 w-14 overflow-hidden rounded-full border-2 transition ${
+                    p.avatar.image === a.src ? "scale-110 border-(--color-pitch-400) shadow-[0_0_16px_-2px_var(--glow-pitch)]" : "border-(--border-strong) opacity-70 hover:opacity-100"
                   }`}
                 >
-                  {e}
+                  <img src={a.src} alt="" aria-hidden className="h-full w-full object-cover" style={{ objectPosition: "center 18%" }} />
                 </button>
               ))}
             </div>
@@ -162,13 +165,7 @@ export function ProfilePage() {
                       unlocked ? "border-(--border-strong) bg-(--surface)" : "border-(--border) bg-(--surface) opacity-45"
                     }`}
                   >
-                    <span
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl ${unlocked ? "" : "grayscale"}`}
-                      style={{ background: `${TIER_COLORS[a.tier]}18`, border: `1px solid ${TIER_COLORS[a.tier]}${unlocked ? "66" : "22"}` }}
-                      aria-hidden
-                    >
-                      {unlocked ? a.icon : "🔒"}
-                    </span>
+                    <AchievementBadge src={a.badge} tier={a.tier} unlocked={unlocked} size={52} alt={`${a.name} badge`} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-sm font-bold">
                         {a.name}

@@ -197,6 +197,42 @@ body {
   border-radius: 0.5rem;
 }
 
+/* ---------- Scoreboard / LED display ---------- */
+.led {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.led-glow {
+  text-shadow: 0 0 10px color-mix(in srgb, currentColor 55%, transparent);
+}
+
+/* ---------- Pitch-line motif ---------- */
+.pitch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  color: var(--border-strong);
+  opacity: 0.55;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, black 30%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, black 30%, transparent 85%);
+}
+
+/* ---------- Feedback flashes ---------- */
+@keyframes goalFlash {
+  0% { opacity: 0; }
+  25% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+@keyframes cardIn {
+  0% { transform: translateY(-10px) rotate(-14deg) scale(0.6); opacity: 0; }
+  55% { transform: translateY(0) rotate(8deg) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) rotate(4deg) scale(1); opacity: 1; }
+}
+.anim-card-in { animation: cardIn 0.5s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { CategoryId, MatchRecord, PlayerAvatar, PlayerState, QuizResult } from "../types";
 import { ACHIEVEMENTS } from "../data/achievements";
 import { levelFromXp } from "../data/levels";
-import { todayKey } from "../lib/daily";
+import { todayKey, monthKey } from "../lib/daily";
 import { createBackend } from "../services/backend";
 
 export interface ResultOutcome {
@@ -58,6 +58,8 @@ const initialState: PlayerState = {
   lastDailyChallengeDate: null,
   dailyChallengeScore: 0,
   dailyChallengeBest: 0,
+  leaderboardMonth: null,
+  monthlyScore: 0,
   tournamentsWon: 0,
   battlesPlayed: 0,
   createdAt: new Date().toISOString(),
@@ -100,6 +102,8 @@ export const usePlayerStore = create<PlayerStore>()(
         return reward;
       },
 
+      // Season-total accumulation happens in applyResult (all modes count); this
+      // only records daily-specific state.
       markDailyDone: (score) =>
         set((s) => ({
           lastDailyChallengeDate: todayKey(),
@@ -125,6 +129,11 @@ export const usePlayerStore = create<PlayerStore>()(
         const draw = isVersus && result.opponentScore === result.score;
         const lost = isVersus && !won && !draw;
         const perfect = result.correct === result.total && result.total > 0;
+
+        // Every quiz — any mode — contributes to the cumulative season total that
+        // ranks players on the global leaderboard. Resets when the month rolls over.
+        const month = monthKey();
+        const carriedSeason = s.leaderboardMonth === month ? s.monthlyScore : 0;
 
         const record: MatchRecord = {
           id: `m${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
@@ -156,6 +165,8 @@ export const usePlayerStore = create<PlayerStore>()(
           perfectGames: s.perfectGames + (perfect ? 1 : 0),
           expertWins: s.expertWins + (won && result.difficulty === "expert" ? 1 : 0),
           battlesPlayed: s.battlesPlayed + (result.mode === "battle" ? 1 : 0),
+          leaderboardMonth: month,
+          monthlyScore: carriedSeason + result.score,
           categoryPerformance,
           matchHistory: [record, ...s.matchHistory].slice(0, 60),
         };

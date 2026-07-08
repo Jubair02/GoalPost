@@ -6,6 +6,7 @@ import { levelFromXp } from "../data/levels";
 import { usePlayerStore } from "../store/playerStore";
 import { trophyCelebration } from "../lib/celebrate";
 import { sfx } from "../lib/sound";
+import { haptics } from "../lib/haptics";
 
 /** Turns a quiz outcome into staggered toasts for level-ups and achievements. */
 export function useOutcomeToasts() {
@@ -18,6 +19,7 @@ export function useOutcomeToasts() {
         const title = levelFromXp(usePlayerStore.getState().xp).title;
         setTimeout(() => {
           sfx.levelUp();
+          haptics.levelUp();
           trophyCelebration();
           push({
             icon: "🆙",
@@ -34,6 +36,7 @@ export function useOutcomeToasts() {
         setTimeout(() => {
           push({
             icon: a.icon,
+            image: a.badge,
             title: `Achievement: ${a.name}`,
             message: `${a.description} · +${a.xpReward} XP`,
             accent: "#ffc93d",

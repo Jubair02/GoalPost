@@ -32,7 +32,7 @@ const MODES = [
     to: "/daily",
     icon: "📅",
     title: "Daily Challenge",
-    blurb: "One shot per day. Global leaderboard. Bonus XP.",
+    blurb: "One shot per day. Scores stack into a monthly season leaderboard.",
     accent: "#2ee6ff",
     cta: "Play today's quiz",
     image: IMG.wcAction,
@@ -91,7 +91,7 @@ export function HomePage() {
           style={{ background: "radial-gradient(circle, var(--glow-pitch), transparent 70%)" }}
         />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center">
-          <ProgressRing progress={level.progress} size={96} stroke={5} label="Level progress">
+          <ProgressRing progress={level.progress} size={96} stroke={5} color="var(--user-accent)" label="Level progress">
             <Avatar avatar={avatar} size={76} />
           </ProgressRing>
           <div className="min-w-0 flex-1">

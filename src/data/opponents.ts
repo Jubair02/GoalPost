@@ -1,7 +1,17 @@
 import type { Difficulty, Opponent, PlayerAvatar } from "../types";
+import { BADGE } from "../lib/assets";
 
 export const AVATAR_EMOJIS = ["⚽", "🦁", "🦅", "🐺", "🐂", "🦈", "🐉", "👑", "🔥", "⚡", "🌟", "🎯", "🦊", "🐆", "🛡️", "🚀"];
 export const AVATAR_COLORS = ["#00de5f", "#c8ff2e", "#2ee6ff", "#6c7bff", "#ffc93d", "#ff4d5e", "#ff8a3d", "#e05fff"];
+
+/** Portrait avatars players can choose — the same legends used for badges. */
+export const AVATAR_IMAGES: { label: string; src: string }[] = [
+  { label: "Messi", src: BADGE.messi },
+  { label: "Ronaldo", src: BADGE.cr7 },
+  { label: "Ronaldinho", src: BADGE.ronaldinho },
+  { label: "Ronaldo Nazário", src: BADGE.ronaldo },
+  { label: "Neymar", src: BADGE.neymar },
+];
 
 const NAMES: Array<[string, string]> = [
   ["TikiTakaTom", "🇪🇸"], ["GegenpressGuru", "🇩🇪"], ["SambaSkills10", "🇧🇷"], ["CatenaccioKing", "🇮🇹"],

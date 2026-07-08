@@ -13,4 +13,14 @@ export const IMG = {
   madrid: `${base}assets/madrid.jpg`, // Real Madrid lifting a trophy
   maldini: `${base}assets/maldini.jpg`, // Paolo Maldini (AC Milan)
   legends: `${base}assets/legends.jpg`, // Legends collage
+  stadium: `${base}assets/stadium.jpg`, // Packed stadium interior
+} as const;
+
+/** Legend portraits used as achievement badge medallions. */
+export const BADGE = {
+  ronaldinho: `${base}assets/badge/3300.webp`,
+  cr7: `${base}assets/badge/8198-1748102259.webp`,
+  ronaldo: `${base}assets/badge/ronaldo-nazario.jpg`,
+  messi: `${base}assets/badge/messhi.jpg`,
+  neymar: `${base}assets/badge/ney.jpg`,
 } as const;

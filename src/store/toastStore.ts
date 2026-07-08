@@ -6,6 +6,8 @@ export interface Toast {
   title: string;
   message: string;
   accent?: string;
+  /** Optional image shown instead of the emoji icon (e.g. achievement badge). */
+  image?: string;
 }
 
 interface ToastStore {

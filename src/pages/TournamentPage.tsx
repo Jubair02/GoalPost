@@ -222,9 +222,11 @@ export function TournamentPage() {
                 className="glass-strong mx-auto max-w-md rounded-3xl p-8"
               >
                 <motion.div
-                  animate={{ rotate: [0, -6, 6, -4, 4, 0], scale: [1, 1.08, 1] }}
-                  transition={{ duration: 1.2, delay: 0.3 }}
+                  initial={{ y: 70, scale: 0.3, opacity: 0 }}
+                  animate={{ y: [70, -14, 0], scale: 1, opacity: 1, rotate: [0, -6, 6, 0] }}
+                  transition={{ duration: 1.1, times: [0, 0.7, 1], ease: "easeOut" }}
                   className="text-6xl"
+                  style={{ filter: "drop-shadow(0 10px 26px var(--glow-pitch))" }}
                   aria-hidden
                 >
                   🏆
@@ -265,8 +267,16 @@ function BracketView({ bracket, field, round }: { bracket: Bracket; field: Oppon
                   initial={{ opacity: 0, x: -14 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: mi * 0.06 }}
-                  className={`glass rounded-2xl p-2.5 ${m.a === PLAYER || m.b === PLAYER ? "border-(--color-pitch-500)/50" : ""}`}
+                  className={`glass relative rounded-2xl p-2.5 ${m.a === PLAYER || m.b === PLAYER ? "border-(--color-pitch-500)/50" : ""}`}
                 >
+                  {/* Bracket connector into the next round; lights up once decided */}
+                  {ri < 2 && (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute left-full top-1/2 h-0.5 w-4 -translate-y-1/2"
+                      style={{ background: m.winner ? "var(--color-pitch-500)" : "var(--border-strong)" }}
+                    />
+                  )}
                   {[m.a, m.b].map((side, si) => (
                     <div
                       key={si}

@@ -19,7 +19,7 @@ No configuration required — the app runs fully offline with progress persisted
 |---|---|
 | ⚡ **Quick Play** | 10/15/20 random questions across 4 difficulties with per-question countdowns, streak bonuses and instant explanations |
 | 📈 **Career** | 24 categories that unlock as you level up; mastery rings track your accuracy per category (+25% XP) |
-| 📅 **Daily Challenge** | The same seeded 10-question quiz for everyone each day, one attempt, global leaderboard, 1.5× XP |
+| 📅 **Daily Challenge** | The same seeded 10-question quiz for everyone each day, one attempt, 1.5× XP. Home of the global **season leaderboard** (real players only, live via Firestore) that every mode's scores feed into and which resets monthly |
 | ⚔️ **Battle** | 1v1 vs skill-rated opponents with matchmaking, 3-2-1 kickoff sync, live scores and "opponent thinking" states |
 | 🏆 **Tournament** | 8-player knockout bracket (QF → SF → Final); champions collect seasonal trophies |
 
@@ -64,7 +64,7 @@ src/
 Two layers, and it matters which is which:
 
 - **Player progression** (XP, coins, achievements, match history, settings) lives in the browser's **`localStorage`** via the `StateBackend` adapter in [src/services/backend.ts](src/services/backend.ts). It's per-device and works offline.
-- **The daily leaderboard** is **global and real-time when Firebase is configured**. [src/services/leaderboard.ts](src/services/leaderboard.ts) writes each player's daily score to Firestore and streams the board back with `onSnapshot`, so every player sees the same board update live. With no Firebase config it transparently falls back to a deterministic local simulation (labelled **Demo** in the UI vs. a green **LIVE** badge when connected).
+- **The season leaderboard** is **global, real-time, and real-players-only**. Every quiz you finish — Quick Play, Career, Daily, Battle or Tournament — adds its score to your running **monthly season total** (accumulated centrally in `applyResult`, published from `Layout`). [src/services/leaderboard.ts](src/services/leaderboard.ts) writes that total to Firestore and streams the board back with `onSnapshot`, so every player sees the same board update live. Rankings reset at the start of each calendar month (a new season). There are **no simulated/demo entries** — the board shows only real players; when Firebase is unreachable it shows an **Offline** state (empty) rather than placeholders. A green **LIVE** badge indicates a connected real-time board.
 
 ### Turning the leaderboard live
 
@@ -73,7 +73,7 @@ Two layers, and it matters which is which:
 3. Deploy the security rules: `firebase deploy --only firestore:rules` (rules are in [firestore.rules](firestore.rules) — they enforce that a user may only write their own entry, with a bounded, well-formed score, so clients can't inject fake results).
 4. `npm run build` / `npm run dev` — the Daily page now shows a **LIVE** board.
 
-Firestore layout: `leaderboards/{YYYY-MM-DD}/scores/{uid}`. Identity is a durable anonymous-auth `uid` (no login screen). The Firebase SDK is lazily, dynamically imported, so it's code-split into its own chunk and never downloaded when Firebase is off.
+Firestore layout: `leaderboards/{YYYY-MM}/scores/{uid}` (one document per player per month, holding the cumulative season total). Identity is a durable anonymous-auth `uid` (no login screen). The Firebase SDK is lazily, dynamically imported, so it's code-split into its own chunk and never downloaded when Firebase is off.
 
 ### Real 1v1 battles (next step)
 

@@ -23,9 +23,19 @@ export function ToastHost() {
             className="glass-strong pointer-events-auto flex w-full max-w-sm items-center gap-3 rounded-2xl p-3 text-left"
             style={t.accent ? { borderColor: `${t.accent}66`, boxShadow: `0 8px 32px -8px ${t.accent}50` } : undefined}
           >
-            <span className="text-2xl" aria-hidden>
-              {t.icon}
-            </span>
+            {t.image ? (
+              <img
+                src={t.image}
+                alt=""
+                aria-hidden
+                className="h-9 w-9 shrink-0 rounded-full object-cover"
+                style={{ objectPosition: "center 18%", border: `2px solid ${t.accent ?? "var(--border-strong)"}` }}
+              />
+            ) : (
+              <span className="text-2xl" aria-hidden>
+                {t.icon}
+              </span>
+            )}
             <span className="min-w-0">
               <span className="block text-sm font-bold" style={{ fontFamily: "var(--font-display)" }}>
                 {t.title}
