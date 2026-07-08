@@ -1,18 +1,22 @@
-import { useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { Layout } from "./components/Layout";
 import { SplashScreen } from "./components/SplashScreen";
 import { Onboarding } from "./components/Onboarding";
 import { usePlayerStore } from "./store/playerStore";
-import { HomePage } from "./pages/HomePage";
-import { QuickPlayPage } from "./pages/QuickPlayPage";
-import { CareerPage } from "./pages/CareerPage";
-import { DailyPage } from "./pages/DailyPage";
-import { BattlePage } from "./pages/BattlePage";
-import { TournamentPage } from "./pages/TournamentPage";
-import { StatsPage } from "./pages/StatsPage";
-import { ProfilePage } from "./pages/ProfilePage";
+import { routeLoaders } from "./routes";
+
+// Route-based code splitting: each page ships as its own chunk, so the first
+// load only downloads the shell + the landing route, not all 8 pages.
+const HomePage = lazy(routeLoaders["/"]);
+const QuickPlayPage = lazy(routeLoaders["/play"]);
+const CareerPage = lazy(routeLoaders["/career"]);
+const DailyPage = lazy(routeLoaders["/daily"]);
+const BattlePage = lazy(routeLoaders["/battle"]);
+const TournamentPage = lazy(routeLoaders["/tournament"]);
+const StatsPage = lazy(routeLoaders["/stats"]);
+const ProfilePage = lazy(routeLoaders["/profile"]);
 
 export default function App() {
   const [splashDone, setSplashDone] = useState(false);

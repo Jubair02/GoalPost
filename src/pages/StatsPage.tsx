@@ -24,7 +24,7 @@ export function StatsPage() {
   const [standing, setStanding] = useState<{ rank: number; total: number } | null>(null);
   useEffect(() => {
     let alive = true;
-    getSeasonStanding().then((s) => alive && setStanding(s));
+    getSeasonStanding(p.monthlyScore).then((s) => alive && setStanding(s));
     return () => {
       alive = false;
     };

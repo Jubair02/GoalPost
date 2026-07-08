@@ -38,11 +38,11 @@ export async function submitSeasonScore(
   if (!firebaseEnabled) return;
   try {
     const { db, uid } = await getFirebase();
-    const { doc, getDoc, setDoc } = await import("firebase/firestore");
+    const { doc, setDoc } = await import("firebase/firestore");
     const ref = doc(db, "leaderboards", key, "scores", uid);
-    // A season total only ever grows — never overwrite a higher value with a lower one.
-    const existing = await getDoc(ref);
-    if (existing.exists() && (existing.data() as SeasonScoreDoc).score >= total) return;
+    // The season total is monotonic locally (it only ever grows within a month)
+    // and each device has its own uid, so we can write directly — no read-first
+    // round-trip. Callers only submit when the total actually increased.
     const payload: SeasonScoreDoc = { name: name || "Anonymous", avatar, country, score: total, updatedAt: Date.now() };
     await setDoc(ref, payload);
   } catch (err) {
@@ -60,7 +60,7 @@ export function subscribeSeasonLeaderboard(
   onUpdate: (entries: LeaderboardEntry[]) => void,
   onError?: (err: unknown) => void,
   key = monthKey(),
-  top = 50
+  top = 25
 ): () => void {
   if (!firebaseEnabled) return () => {};
 
@@ -107,22 +107,30 @@ export function subscribeSeasonLeaderboard(
 }
 
 /**
- * The player's live standing in the current season (rank + total entrants),
- * read once from Firestore. Returns null when Firebase is unavailable or the
- * player has no entry yet this month.
+ * The player's standing in the current season (rank + total entrants).
+ *
+ * Uses server-side COUNT aggregation instead of downloading the whole
+ * collection: rank = (players scoring higher) + 1, total = all players. That's
+ * two aggregation queries (each billed as a single read) regardless of how many
+ * thousands of players exist — vs. reading every document. Returns null when
+ * Firebase is unavailable; rank 0 means the player has no score yet.
  */
 export async function getSeasonStanding(
+  playerScore: number,
   key = monthKey()
 ): Promise<{ rank: number; total: number } | null> {
   if (!firebaseEnabled) return null;
   try {
-    const { db, uid } = await getFirebase();
-    const { collection, query, orderBy, getDocs } = await import("firebase/firestore");
-    const snap = await getDocs(query(collection(db, "leaderboards", key, "scores"), orderBy("score", "desc")));
-    const ids = snap.docs.map((d) => d.id);
-    const idx = ids.indexOf(uid);
-    if (idx < 0) return { rank: 0, total: ids.length };
-    return { rank: idx + 1, total: ids.length };
+    const { db } = await getFirebase();
+    const { collection, query, where, getCountFromServer } = await import("firebase/firestore");
+    const scores = collection(db, "leaderboards", key, "scores");
+    const [totalSnap, higherSnap] = await Promise.all([
+      getCountFromServer(scores),
+      getCountFromServer(query(scores, where("score", ">", playerScore))),
+    ]);
+    const total = totalSnap.data().count;
+    if (playerScore <= 0) return { rank: 0, total };
+    return { rank: higherSnap.data().count + 1, total };
   } catch {
     return null;
   }

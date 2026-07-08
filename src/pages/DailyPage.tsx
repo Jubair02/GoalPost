@@ -40,22 +40,23 @@ function useSeasonLeaderboard(
     return unsub;
   }, [configured]);
 
-  // Real players only — no simulated entries. When the backend is unavailable
-  // the board is simply empty rather than showing placeholders.
-  if (!live) return { entries: [], loading: false, live: false, available: false };
-  if (remote === null) return { entries: [], loading: true, live: true, available: true };
+  // Memoize the derived board so its array reference is stable across unrelated
+  // re-renders — memoized <LeaderboardList/> then skips work unless data changes.
+  const entries = useMemo<LeaderboardEntry[]>(() => {
+    if (!live || remote === null) return [];
+    // Merge the player's own row so they see themselves instantly (real players only).
+    if (playerScore !== null && !remote.some((e) => e.isPlayer)) {
+      return [...remote, { rank: 0, name: name || "You", avatar, country: "⭐", score: playerScore, isPlayer: true }]
+        .sort((a, b) => b.score - a.score)
+        .map((e, i) => ({ ...e, rank: i + 1 }));
+    }
+    return remote;
+  }, [live, remote, playerScore, name, avatar]);
 
-  // Ensure the player sees their own row instantly even if the write is in flight.
-  let entries = remote;
-  if (playerScore !== null && !remote.some((e) => e.isPlayer)) {
-    entries = [...remote, { rank: 0, name: name || "You", avatar, country: "⭐", score: playerScore, isPlayer: true }]
-      .sort((a, b) => b.score - a.score)
-      .map((e, i) => ({ ...e, rank: i + 1 }));
-  }
-  return { entries, loading: false, live: true, available: true };
+  return { entries, loading: live && remote === null, live, available: live };
 }
 
-function useCountdown() {
+function useCountdownText() {
   const [ms, setMs] = useState(msUntilNextDaily());
   useEffect(() => {
     const t = setInterval(() => setMs(msUntilNextDaily()), 1000);
@@ -65,6 +66,21 @@ function useCountdown() {
   const m = Math.floor((ms % 3600000) / 60000);
   const s = Math.floor((ms % 60000) / 1000);
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/**
+ * Self-contained countdown leaves. Because the 1s tick lives here — not in the
+ * lobby — the leaderboard and the rest of the page never re-render every second.
+ */
+function CountdownChip() {
+  return (
+    <span className="chip led" title="Time until next challenge">
+      ⏳ {useCountdownText()}
+    </span>
+  );
+}
+function CountdownInline() {
+  return <>{useCountdownText()}</>;
 }
 
 export function DailyPage() {
@@ -81,7 +97,6 @@ export function DailyPage() {
 }
 
 function DailyLobby({ alreadyDone, result, onStart }: { alreadyDone: boolean; result: QuizResult | null; onStart: () => void }) {
-  const countdown = useCountdown();
   const name = usePlayerStore((s) => s.name);
   const avatar = usePlayerStore((s) => s.avatar);
   const dailyBest = usePlayerStore((s) => s.dailyChallengeBest);
@@ -111,11 +126,7 @@ function DailyLobby({ alreadyDone, result, onStart }: { alreadyDone: boolean; re
         icon="📅"
         title="Daily Challenge"
         subtitle="Ten questions, one attempt, the whole world on the same quiz."
-        right={
-          <span className="chip font-mono" title="Time until next challenge">
-            ⏳ {countdown}
-          </span>
-        }
+        right={<CountdownChip />}
       />
 
       <div className="grid gap-6 lg:grid-cols-5">
@@ -147,7 +158,7 @@ function DailyLobby({ alreadyDone, result, onStart }: { alreadyDone: boolean; re
                 Season total{playerEntry ? ` · Rank #${playerEntry.rank}` : ""}:{" "}
                 <span className="font-mono text-(--color-volt)">{displaySeason.toLocaleString()}</span>
               </div>
-              <div className="mt-1 font-mono text-xs text-white/50">Next challenge in {countdown}</div>
+              <div className="led mt-1 text-xs text-white/50">Next challenge in <CountdownInline /></div>
             </div>
           ) : (
             <button onClick={onStart} className="btn-primary focus-ring relative mt-6 w-full py-4 text-lg">

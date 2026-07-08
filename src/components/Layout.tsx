@@ -1,17 +1,20 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSettingsStore } from "../store/settingsStore";
 import { usePlayerStore, useLevel } from "../store/playerStore";
 import { useToastStore } from "../store/toastStore";
 import { submitSeasonScore } from "../services/leaderboard";
 import { monthKey } from "../lib/daily";
+import { prefetchRoute } from "../routes";
 import { Avatar } from "./Avatar";
 import { ProgressRing } from "./ProgressRing";
 import { CountUp } from "./CountUp";
 import { ToastHost } from "./ToastHost";
 import { BuildCredit } from "./BuildCredit";
 import { PitchOverlay } from "./PitchOverlay";
+import { PageFallback } from "./PageFallback";
+import { RouteErrorBoundary } from "./RouteErrorBoundary";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: "🏠" },
@@ -46,6 +49,26 @@ export function Layout() {
   useEffect(() => {
     document.documentElement.style.setProperty("--user-accent", avatar.color || "var(--color-pitch-400)");
   }, [avatar.color]);
+
+  // When the browser is idle, warm the Daily route and the Firebase SDK chunks
+  // (download + cache only — no auth) so the live leaderboard opens instantly.
+  useEffect(() => {
+    const warm = () => {
+      prefetchRoute("/daily");
+      import("firebase/app");
+      import("firebase/auth");
+      import("firebase/firestore");
+    };
+    const w = window as typeof window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const id = w.requestIdleCallback ? w.requestIdleCallback(warm, { timeout: 3000 }) : window.setTimeout(warm, 1800);
+    return () => {
+      if (w.cancelIdleCallback) w.cancelIdleCallback(id as number);
+      else clearTimeout(id as number);
+    };
+  }, []);
 
   // Publish this player's cumulative season total to the global leaderboard
   // whenever it changes (after any quiz, any mode). No-op when Firebase is off,
@@ -103,6 +126,8 @@ export function Layout() {
                 key={item.to}
                 to={item.to}
                 end={item.to === "/"}
+                onMouseEnter={() => prefetchRoute(item.to)}
+                onFocus={() => prefetchRoute(item.to)}
                 className={({ isActive }) =>
                   `focus-ring rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors ${
                     isActive ? "bg-(--surface-strong) text-(--color-pitch-300)" : "text-(--text-dim) hover:text-(--text)"
@@ -148,19 +173,18 @@ export function Layout() {
         </div>
       </header>
 
-      {/* Page content with route transitions */}
+      {/* Page content. A stable Suspense boundary shows the fallback while a
+          lazy page chunk loads; the per-route CSS fade replaces the old
+          AnimatePresence "wait" transition, which could stall and leave the
+          next page unmounted (blank) when navigation interrupted its exit. */}
       <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <Suspense fallback={<PageFallback />}>
+          <div key={location.pathname} className="route-fade">
+            <RouteErrorBoundary>
+              <Outlet />
+            </RouteErrorBoundary>
+          </div>
+        </Suspense>
       </main>
 
       {/* Mobile bottom nav */}

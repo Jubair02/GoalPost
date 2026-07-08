@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { memo, useRef } from "react";
 import { motion } from "framer-motion";
 import type { LeaderboardEntry } from "../types";
 import { Avatar } from "./Avatar";
@@ -44,7 +44,7 @@ function Row({ e, delta, index }: { e: LeaderboardEntry; delta: number | null; i
   );
 }
 
-export function LeaderboardList({
+export const LeaderboardList = memo(function LeaderboardList({
   entries,
   loading,
   player,
@@ -138,4 +138,4 @@ export function LeaderboardList({
       )}
     </div>
   );
-}
+});
