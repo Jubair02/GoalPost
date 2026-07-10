@@ -54,15 +54,17 @@ export const LeaderboardList = memo(function LeaderboardList({
   /** The player's full entry, so it can be pinned when outside the visible list. */
   player?: LeaderboardEntry;
 }) {
-  // Remember each name's previous rank so we can show live movement arrows.
+  // Remember each player's previous rank (by stable uid, not display name, so
+  // same-named players don't collide) to show live movement arrows.
+  const idOf = (e: LeaderboardEntry) => e.id ?? e.name;
   const prevRanks = useRef<Map<string, number>>(new Map());
   const deltaFor = (e: LeaderboardEntry): number | null => {
-    const prev = prevRanks.current.get(e.name);
+    const prev = prevRanks.current.get(idOf(e));
     return prev === undefined ? null : prev - e.rank; // positive = climbed
   };
   if (!loading) {
     const next = new Map<string, number>();
-    entries.forEach((e) => next.set(e.name, e.rank));
+    entries.forEach((e) => next.set(idOf(e), e.rank));
     prevRanks.current = next;
   }
 
@@ -94,7 +96,7 @@ export const LeaderboardList = memo(function LeaderboardList({
         <div className="mb-4 grid grid-cols-3 items-end gap-2">
           {podiumOrder.map((e) => (
             <motion.div
-              key={`${e.rank}-${e.name}`}
+              key={idOf(e)}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: e.rank * 0.08, type: "spring", stiffness: 200, damping: 20 }}
@@ -125,7 +127,7 @@ export const LeaderboardList = memo(function LeaderboardList({
       {/* Remaining ranks (or all, if fewer than 3) */}
       <ol className="flex flex-col gap-2">
         {(top3.length >= 3 ? rest : entries).map((e, i) => (
-          <Row key={`${e.rank}-${e.name}`} e={e} delta={deltaFor(e)} index={i} />
+          <Row key={idOf(e)} e={e} delta={deltaFor(e)} index={i} />
         ))}
       </ol>
 

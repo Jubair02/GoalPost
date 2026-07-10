@@ -62,7 +62,9 @@ const initialState: PlayerState = {
   monthlyScore: 0,
   tournamentsWon: 0,
   battlesPlayed: 0,
-  createdAt: new Date().toISOString(),
+  // Stamped on first onboarding (setName) / reset — not at module load, so
+  // "member since" reflects when the profile was actually created.
+  createdAt: "",
 };
 
 function isYesterday(dateKey: string, today: string): boolean {
@@ -76,7 +78,11 @@ export const usePlayerStore = create<PlayerStore>()(
     (set, get) => ({
       ...initialState,
 
-      setName: (name) => set({ name: name.trim().slice(0, 20) }),
+      setName: (name) =>
+        set((s) => ({
+          name: name.trim().slice(0, 20),
+          createdAt: s.createdAt || new Date().toISOString(),
+        })),
       setAvatar: (avatar) => set({ avatar }),
       addCoins: (amount) => set((s) => ({ coins: Math.max(0, s.coins + amount) })),
       addTrophy: (name) => set((s) => ({ trophies: [...s.trophies, name] })),

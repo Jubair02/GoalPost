@@ -5,3 +5,10 @@ dist/
 .env
 .env.*
 !.env.example
+# Firebase Admin service-account keys — NEVER commit. Broad patterns so
+# accidental variants (double extensions, prefixes) are still ignored.
+serviceAccount*.json
+*serviceaccount*.json
+*-service-account*.json
+*.pem
+*.key

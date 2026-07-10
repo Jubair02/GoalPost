@@ -3,8 +3,9 @@ import { HashRouter, Route, Routes } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { Layout } from "./components/Layout";
 import { SplashScreen } from "./components/SplashScreen";
-import { Onboarding } from "./components/Onboarding";
+import { LoginPage } from "./components/LoginPage";
 import { usePlayerStore } from "./store/playerStore";
+import { startPlayerSync } from "./services/playerSync";
 import { routeLoaders } from "./routes";
 
 // Route-based code splitting: each page ships as its own chunk, so the first
@@ -29,10 +30,14 @@ export default function App() {
     return () => unsub?.();
   }, []);
 
+  // Bind the local profile to the signed-in user's cloud document, so progress
+  // is tied to their identity and syncs across devices (no-op when offline).
+  useEffect(() => startPlayerSync(), []);
+
   return (
     <HashRouter>
       <AnimatePresence>{!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}</AnimatePresence>
-      {splashDone && hydrated && !name && <Onboarding />}
+      {splashDone && hydrated && !name && <LoginPage />}
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />

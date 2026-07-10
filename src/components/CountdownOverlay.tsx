@@ -34,7 +34,7 @@ export function CountdownOverlay({ onDone }: { onDone: () => void }) {
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           exit={{ scale: 0.4, opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className={`text-8xl font-extrabold ${step === 0 ? "text-gradient" : ""}`}
+          className={`text-7xl font-extrabold sm:text-8xl ${step === 0 ? "text-gradient" : ""}`}
           style={{ fontFamily: "var(--font-display)" }}
         >
           {step === 0 ? "GO!" : step}

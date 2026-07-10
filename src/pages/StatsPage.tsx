@@ -139,7 +139,7 @@ export function StatsPage() {
               <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-display)" }}>🏅 Achievements</h2>
               <span className="chip">{p.achievements.length}/{ACHIEVEMENTS.length}</span>
             </div>
-            <div className="grid grid-cols-5 justify-items-center gap-3 sm:grid-cols-10">
+            <div className="grid grid-cols-4 justify-items-center gap-2.5 sm:grid-cols-10 sm:gap-3">
               {ACHIEVEMENTS.map((a) => {
                 const unlocked = p.achievements.includes(a.id);
                 return (

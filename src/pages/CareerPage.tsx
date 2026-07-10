@@ -128,7 +128,7 @@ export function CareerPage() {
               exit={{ y: 80, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 28 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass-strong w-full max-w-xl rounded-t-3xl p-6 sm:rounded-3xl sm:p-8"
+              className="glass-strong max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl p-6 sm:rounded-3xl sm:p-8"
             >
               <div className="mb-1 text-4xl" aria-hidden>{selectedMeta.icon}</div>
               <h2 className="text-xl font-extrabold" style={{ fontFamily: "var(--font-display)" }}>{selectedMeta.name}</h2>

@@ -7,6 +7,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Avatar } from "../components/Avatar";
 import { ProgressRing } from "../components/ProgressRing";
 import { AchievementBadge } from "../components/AchievementBadge";
+import { signOutUser } from "../services/firebase";
 import { sfx } from "../lib/sound";
 
 export function ProfilePage() {
@@ -16,12 +17,28 @@ export function ProfilePage() {
   const [draft, setDraft] = useState(p.name);
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const memberSince = new Date(p.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const memberSince = p.createdAt
+    ? new Date(p.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    : "today";
 
   const saveName = () => {
     if (draft.trim()) p.setName(draft);
     setEditing(false);
     sfx.click();
+  };
+
+  // Sign out and fully clear the local session. We sign out FIRST so cloud sync
+  // sees the user go null and stops writing, THEN wipe the local store — the
+  // cloud profile (players/{uid}) is the durable copy, so nothing is lost and
+  // the next person on this device starts clean instead of inheriting data.
+  const handleSignOut = async () => {
+    sfx.click();
+    try {
+      await signOutUser();
+    } catch {
+      /* ignore — clear the local session regardless */
+    }
+    p.resetProgress();
   };
 
   return (
@@ -107,7 +124,7 @@ export function ProfilePage() {
               ))}
             </div>
             <h3 className="mt-4 mb-2 text-xs font-bold uppercase tracking-wider text-(--text-faint)">Colour</h3>
-            <div className="flex gap-2" role="radiogroup" aria-label="Avatar colour">
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Avatar colour">
               {AVATAR_COLORS.map((c) => (
                 <button
                   key={c}
@@ -115,15 +132,18 @@ export function ProfilePage() {
                   aria-checked={p.avatar.color === c}
                   aria-label={`Colour ${c}`}
                   onClick={() => { p.setAvatar({ ...p.avatar, color: c }); sfx.click(); }}
-                  className={`focus-ring h-8 w-8 rounded-full border-2 transition ${p.avatar.color === c ? "scale-115 border-white" : "border-transparent"}`}
+                  className={`focus-ring h-10 w-10 rounded-full border-2 transition ${p.avatar.color === c ? "scale-115 border-white" : "border-transparent"}`}
                   style={{ background: c }}
                 />
               ))}
             </div>
           </div>
 
-          {/* Danger zone */}
-          <div className="mt-8 border-t border-(--border) pt-4">
+          {/* Account + danger zone */}
+          <div className="mt-8 flex flex-col items-center gap-3 border-t border-(--border) pt-4">
+            <button onClick={handleSignOut} className="btn-ghost focus-ring px-5 py-2 text-sm">
+              🚪 Sign out
+            </button>
             {confirmReset ? (
               <div className="flex items-center justify-center gap-2 text-sm">
                 <span className="text-(--text-dim)">Wipe all progress?</span>

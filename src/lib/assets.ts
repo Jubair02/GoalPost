@@ -14,6 +14,7 @@ export const IMG = {
   maldini: `${base}assets/maldini.jpg`, // Paolo Maldini (AC Milan)
   legends: `${base}assets/legends.jpg`, // Legends collage
   stadium: `${base}assets/stadium.jpg`, // Packed stadium interior
+  loginHero: `${base}assets/login-hero.jpg`, // Painted collage of football legends — login backdrop
 } as const;
 
 /** Legend portraits used as achievement badge medallions. */

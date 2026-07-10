@@ -16,9 +16,9 @@ import { PitchOverlay } from "./PitchOverlay";
 import { PageFallback } from "./PageFallback";
 import { RouteErrorBoundary } from "./RouteErrorBoundary";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { to: string; label: string; shortLabel?: string; icon: string }[] = [
   { to: "/", label: "Home", icon: "🏠" },
-  { to: "/play", label: "Quick Play", icon: "⚡" },
+  { to: "/play", label: "Quick Play", shortLabel: "Play", icon: "⚡" },
   { to: "/career", label: "Career", icon: "📈" },
   { to: "/daily", label: "Daily", icon: "📅" },
   { to: "/battle", label: "Battle", icon: "⚔️" },
@@ -109,12 +109,12 @@ export function Layout() {
         className="sticky top-0 z-40 border-b border-(--border)"
         style={{ background: "var(--nav-bg)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)" }}
       >
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-4">
           <NavLink to="/" className="focus-ring flex items-center gap-2" aria-label="GoalPost home">
-            <motion.span whileHover={{ rotate: 180 }} transition={{ duration: 0.5 }} className="text-2xl" aria-hidden>
+            <motion.span whileHover={{ rotate: 180 }} transition={{ duration: 0.5 }} className="text-xl sm:text-2xl" aria-hidden>
               ⚽
             </motion.span>
-            <span className="text-lg font-extrabold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="text-base font-extrabold tracking-tight sm:text-lg" style={{ fontFamily: "var(--font-display)" }}>
               Goal<span className="text-gradient">Post</span>
             </span>
           </NavLink>
@@ -146,7 +146,7 @@ export function Layout() {
             </span>
             <button
               onClick={toggleSound}
-              className="btn-ghost focus-ring h-9 w-9 !rounded-full text-sm"
+              className="btn-ghost focus-ring h-10 w-10 !rounded-full text-sm sm:h-9 sm:w-9"
               aria-label={soundOn ? "Mute sound" : "Unmute sound"}
               title={soundOn ? "Mute" : "Unmute"}
             >
@@ -154,7 +154,7 @@ export function Layout() {
             </button>
             <button
               onClick={toggleTheme}
-              className="btn-ghost focus-ring h-9 w-9 !rounded-full text-sm"
+              className="btn-ghost focus-ring h-10 w-10 !rounded-full text-sm sm:h-9 sm:w-9"
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               title="Toggle theme"
             >
@@ -206,7 +206,7 @@ export function Layout() {
               }
             >
               <span className="text-lg" aria-hidden>{item.icon}</span>
-              {item.label}
+              <span className="whitespace-nowrap">{item.shortLabel ?? item.label}</span>
             </NavLink>
           ))}
         </div>

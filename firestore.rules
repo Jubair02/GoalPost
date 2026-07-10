@@ -11,8 +11,8 @@ service cloud.firestore {
       allow read: if request.auth != null;
 
       // A user may only write their OWN entry, and only with a plausible,
-      // well-formed, bounded score. This is the server-side validation that
-      // stops clients from injecting arbitrary or impossible scores. The cap
+      // well-formed, bounded payload. This is the server-side validation that
+      // stops clients from injecting arbitrary or impossible data. The cap
       // accommodates a full month of accumulated daily-challenge scores.
       allow create, update: if request.auth != null
         && request.auth.uid == uid
@@ -21,9 +21,26 @@ service cloud.firestore {
         && request.resource.data.score <= 500000
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 20
+        && request.resource.data.avatar is map
+        && request.resource.data.country is string
+        && request.resource.data.country.size() <= 8
         && request.resource.data.keys().hasOnly(['name', 'avatar', 'country', 'score', 'updatedAt']);
 
       allow delete: if false;
+    }
+
+    // Private per-user profile: the single source of truth for a player's data
+    // (profile, XP, coins, stats, achievements, season score). Accessible ONLY
+    // by its owner — this is what ties all user data to one uid.
+    match /players/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 20
+        && request.resource.data.xp is number
+        && request.resource.data.xp >= 0;
     }
   }
 }

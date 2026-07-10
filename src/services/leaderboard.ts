@@ -27,6 +27,12 @@ export function leaderboardIsLive(): boolean {
   return firebaseEnabled;
 }
 
+// The last (uid, month, score, name, avatar) we actually wrote. Guards against
+// redundant writes: the submit effect re-runs on every mount/refresh and on
+// avatar/name edits, but Firestore should only be touched when the row's
+// content truly changed.
+let lastWritten = "";
+
 /** Publish the player's cumulative season total for the current month. */
 export async function submitSeasonScore(
   total: number,
@@ -38,13 +44,16 @@ export async function submitSeasonScore(
   if (!firebaseEnabled) return;
   try {
     const { db, uid } = await getFirebase();
+    const payload: SeasonScoreDoc = { name: name || "Anonymous", avatar, country, score: total, updatedAt: Date.now() };
+    const signature = JSON.stringify([uid, key, payload.score, payload.name, payload.avatar, payload.country]);
+    if (signature === lastWritten) return; // nothing changed — skip the write
     const { doc, setDoc } = await import("firebase/firestore");
     const ref = doc(db, "leaderboards", key, "scores", uid);
     // The season total is monotonic locally (it only ever grows within a month)
-    // and each device has its own uid, so we can write directly — no read-first
-    // round-trip. Callers only submit when the total actually increased.
-    const payload: SeasonScoreDoc = { name: name || "Anonymous", avatar, country, score: total, updatedAt: Date.now() };
+    // and the doc is keyed by the stable uid, so we can write directly — no
+    // read-first round-trip.
     await setDoc(ref, payload);
+    lastWritten = signature;
   } catch (err) {
     // Never let a leaderboard write break the play flow.
     console.warn("Leaderboard submit failed:", err);
@@ -80,6 +89,7 @@ export function subscribeSeasonLeaderboard(
             const data = d.data() as SeasonScoreDoc;
             return {
               rank: i + 1,
+              id: d.id,
               name: data.name,
               avatar: data.avatar,
               country: data.country,

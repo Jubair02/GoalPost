@@ -152,6 +152,8 @@ export interface PlayerState {
 
 export interface LeaderboardEntry {
   rank: number;
+  /** Stable identity (Firestore uid) — used for movement tracking and keys. */
+  id?: string;
   name: string;
   avatar: PlayerAvatar;
   score: number;
