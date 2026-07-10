@@ -3,28 +3,55 @@ rules_version = '2';
 // Security rules for the GoalPost global season leaderboard.
 // Rankings accumulate per calendar month, then reset for the next season.
 // Layout: leaderboards/{YYYY-MM}/scores/{uid}
+//
+// The board is fed ONLY by the Daily Challenge. Since the free (Spark) plan has
+// no server compute to recompute a quiz, these rules instead make the score
+// tamper-resistant by constraining HOW it can change (Google enforces this
+// server-side, so a modified client can't bypass it):
+//   • one entry per user (uid = doc id, owner-only writes)
+//   • score can only ever INCREASE
+//   • each write may add at most ONE daily's worth of points (MAX_DAILY)
+//   • the day key must strictly advance  → ~one bump per calendar day
+//   • updatedAt must be a genuine server timestamp (can't be spoofed)
+// This blocks the "set score = 499999 in one shot" attack and caps inflation to
+// the same rate an honest top player achieves. (A perfect daily ≈ 3265 pts.)
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Max points a single Daily Challenge can yield (headroom over ~3265).
+    function maxDaily() { return 3500; }
+
+    // Well-formed, bounded leaderboard row written with a real server timestamp.
+    function validEntry(d) {
+      return d.score is number
+        && d.score >= 0
+        && d.score <= 500000
+        && d.name is string && d.name.size() <= 20
+        && d.avatar is map
+        && d.country is string && d.country.size() <= 8
+        && d.lastDay is string && d.lastDay.size() <= 10
+        && d.updatedAt == request.time
+        && d.keys().hasOnly(['name', 'avatar', 'country', 'score', 'updatedAt', 'lastDay']);
+    }
 
     match /leaderboards/{period}/scores/{uid} {
       // Anyone signed in (incl. anonymous) can read the board.
       allow read: if request.auth != null;
 
-      // A user may only write their OWN entry, and only with a plausible,
-      // well-formed, bounded payload. This is the server-side validation that
-      // stops clients from injecting arbitrary or impossible data. The cap
-      // accommodates a full month of accumulated daily-challenge scores.
-      allow create, update: if request.auth != null
+      // First entry of the season — a single daily's worth, at most.
+      allow create: if request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.score is number
-        && request.resource.data.score >= 0
-        && request.resource.data.score <= 500000
-        && request.resource.data.name is string
-        && request.resource.data.name.size() <= 20
-        && request.resource.data.avatar is map
-        && request.resource.data.country is string
-        && request.resource.data.country.size() <= 8
-        && request.resource.data.keys().hasOnly(['name', 'avatar', 'country', 'score', 'updatedAt']);
+        && validEntry(request.resource.data)
+        && request.resource.data.score <= maxDaily();
+
+      // Subsequent bumps: score only increases, by ≤ one daily, and the day
+      // must advance — so a client can't inflate its total arbitrarily.
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && validEntry(request.resource.data)
+        && request.resource.data.score >= resource.data.score
+        && request.resource.data.score - resource.data.score <= maxDaily()
+        && request.resource.data.lastDay > resource.data.lastDay;
 
       allow delete: if false;
     }

@@ -143,8 +143,12 @@ export interface PlayerState {
   dailyChallengeBest: number;
   /** Month (YYYY-MM) the running season total belongs to; null before first play. */
   leaderboardMonth: string | null;
-  /** Cumulative daily-challenge score for the current season/month — the leaderboard value. */
+  /** Cumulative score across ALL modes this month (local stat only, not the leaderboard). */
   monthlyScore: number;
+  /** Month (YYYY-MM) the daily-season total belongs to; null before first daily. */
+  seasonDailyMonth: string | null;
+  /** Cumulative DAILY-challenge score for the season — the value published to the leaderboard. */
+  seasonDailyScore: number;
   tournamentsWon: number;
   battlesPlayed: number;
   createdAt: string;

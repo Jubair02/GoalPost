@@ -19,7 +19,11 @@ export interface SeasonScoreDoc {
   avatar: PlayerAvatar;
   country?: string;
   score: number;
-  updatedAt: number;
+  /** UTC-ish day key (YYYY-MM-DD) of the last daily that updated this row.
+   *  Security rules require it to strictly advance, enforcing one bump per day. */
+  lastDay?: string;
+  /** Firestore server timestamp (rules require it to equal request.time). */
+  updatedAt?: unknown;
 }
 
 /** Whether the leaderboard is backed by a real shared datastore. */
@@ -27,35 +31,47 @@ export function leaderboardIsLive(): boolean {
   return firebaseEnabled;
 }
 
-// The last (uid, month, score, name, avatar) we actually wrote. Guards against
-// redundant writes: the submit effect re-runs on every mount/refresh and on
-// avatar/name edits, but Firestore should only be touched when the row's
-// content truly changed.
+// Signature of the last write, to skip redundant no-op writes.
 let lastWritten = "";
 
-/** Publish the player's cumulative season total for the current month. */
-export async function submitSeasonScore(
+/**
+ * Publish the player's DAILY-challenge season total to the global leaderboard.
+ *
+ * Only the Daily Challenge feeds the board (the one deterministic, comparable
+ * mode). The write is an append-style bump: `total` is the cumulative daily
+ * season score and `dayKey` is today's date. Security rules enforce that the
+ * score only ever increases, by at most one daily's worth per write, that
+ * `lastDay` strictly advances (≈ one bump per calendar day), and that
+ * `updatedAt` is a genuine server timestamp — so a tampered client can't inject
+ * an arbitrary total. See firestore.rules.
+ */
+export async function submitDailySeasonScore(
   total: number,
   name: string,
   avatar: PlayerAvatar,
+  dayKey: string,
   country = "⭐",
   key = monthKey()
 ): Promise<void> {
   if (!firebaseEnabled) return;
   try {
     const { db, uid } = await getFirebase();
-    const payload: SeasonScoreDoc = { name: name || "Anonymous", avatar, country, score: total, updatedAt: Date.now() };
-    const signature = JSON.stringify([uid, key, payload.score, payload.name, payload.avatar, payload.country]);
+    const { doc, setDoc, serverTimestamp } = await import("firebase/firestore");
+    const signature = JSON.stringify([uid, key, total, name, avatar, country, dayKey]);
     if (signature === lastWritten) return; // nothing changed — skip the write
-    const { doc, setDoc } = await import("firebase/firestore");
-    const ref = doc(db, "leaderboards", key, "scores", uid);
-    // The season total is monotonic locally (it only ever grows within a month)
-    // and the doc is keyed by the stable uid, so we can write directly — no
-    // read-first round-trip.
-    await setDoc(ref, payload);
+    const payload: SeasonScoreDoc = {
+      name: name || "Anonymous",
+      avatar,
+      country,
+      score: total,
+      lastDay: dayKey,
+      updatedAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, "leaderboards", key, "scores", uid), payload);
     lastWritten = signature;
   } catch (err) {
-    // Never let a leaderboard write break the play flow.
+    // Never let a leaderboard write break the play flow (e.g. a rules rejection
+    // when the day hasn't advanced).
     console.warn("Leaderboard submit failed:", err);
   }
 }

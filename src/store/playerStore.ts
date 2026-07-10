@@ -60,6 +60,8 @@ const initialState: PlayerState = {
   dailyChallengeBest: 0,
   leaderboardMonth: null,
   monthlyScore: 0,
+  seasonDailyMonth: null,
+  seasonDailyScore: 0,
   tournamentsWon: 0,
   battlesPlayed: 0,
   // Stamped on first onboarding (setName) / reset — not at module load, so
@@ -108,14 +110,20 @@ export const usePlayerStore = create<PlayerStore>()(
         return reward;
       },
 
-      // Season-total accumulation happens in applyResult (all modes count); this
-      // only records daily-specific state.
+      // Records daily-specific state AND accumulates the daily-only season total
+      // that feeds the global leaderboard (resets when the month rolls over).
       markDailyDone: (score) =>
-        set((s) => ({
-          lastDailyChallengeDate: todayKey(),
-          dailyChallengeScore: score,
-          dailyChallengeBest: Math.max(s.dailyChallengeBest, score),
-        })),
+        set((s) => {
+          const month = monthKey();
+          const carried = s.seasonDailyMonth === month ? s.seasonDailyScore : 0;
+          return {
+            lastDailyChallengeDate: todayKey(),
+            dailyChallengeScore: score,
+            dailyChallengeBest: Math.max(s.dailyChallengeBest, score),
+            seasonDailyMonth: month,
+            seasonDailyScore: carried + score,
+          };
+        }),
 
       applyResult: (result) => {
         const s = get();

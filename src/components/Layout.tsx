@@ -4,8 +4,6 @@ import { motion } from "framer-motion";
 import { useSettingsStore } from "../store/settingsStore";
 import { usePlayerStore, useLevel } from "../store/playerStore";
 import { useToastStore } from "../store/toastStore";
-import { submitSeasonScore } from "../services/leaderboard";
-import { monthKey } from "../lib/daily";
 import { prefetchRoute } from "../routes";
 import { Avatar } from "./Avatar";
 import { ProgressRing } from "./ProgressRing";
@@ -35,8 +33,6 @@ export function Layout() {
   const avatar = usePlayerStore((s) => s.avatar);
   const coins = usePlayerStore((s) => s.coins);
   const registerLogin = usePlayerStore((s) => s.registerLogin);
-  const monthlyScore = usePlayerStore((s) => s.monthlyScore);
-  const leaderboardMonth = usePlayerStore((s) => s.leaderboardMonth);
   const push = useToastStore((s) => s.push);
   const level = useLevel();
   const location = useLocation();
@@ -74,14 +70,8 @@ export function Layout() {
     };
   }, []);
 
-  // Publish this player's cumulative season total to the global leaderboard
-  // whenever it changes (after any quiz, any mode). No-op when Firebase is off,
-  // and skipped for a stale total left over from a previous month.
-  useEffect(() => {
-    if (monthlyScore > 0 && leaderboardMonth === monthKey()) {
-      void submitSeasonScore(monthlyScore, name, avatar);
-    }
-  }, [monthlyScore, leaderboardMonth, name, avatar]);
+  // The leaderboard is fed only by the Daily Challenge (see DailyPage), so there
+  // is no all-mode publish here anymore.
 
   // Daily login reward, once per day on first load.
   useEffect(() => {

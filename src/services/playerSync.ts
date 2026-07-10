@@ -67,6 +67,16 @@ export function mergePlayerState(a: PlayerState, b: PlayerState): PlayerState {
     : Math.max(a.monthlyScore, b.monthlyScore);
   const leaderboardMonth = aInSeason || bInSeason ? month : primary.leaderboardMonth;
 
+  // Daily-season total (the leaderboard value) — same month-aware reconcile.
+  const aDailyIn = a.seasonDailyMonth === month;
+  const bDailyIn = b.seasonDailyMonth === month;
+  const seasonDailyScore = aDailyIn && bDailyIn
+    ? Math.max(a.seasonDailyScore, b.seasonDailyScore)
+    : aDailyIn ? a.seasonDailyScore
+    : bDailyIn ? b.seasonDailyScore
+    : Math.max(a.seasonDailyScore, b.seasonDailyScore);
+  const seasonDailyMonth = aDailyIn || bDailyIn ? month : primary.seasonDailyMonth;
+
   const historyById = new Map<string, MatchRecord>();
   for (const m of [...a.matchHistory, ...b.matchHistory]) historyById.set(m.id, m);
   const matchHistory = [...historyById.values()]
@@ -113,6 +123,8 @@ export function mergePlayerState(a: PlayerState, b: PlayerState): PlayerState {
     matchHistory,
     leaderboardMonth,
     monthlyScore,
+    seasonDailyMonth,
+    seasonDailyScore,
     lastLoginDate: latestDate(a.lastLoginDate, b.lastLoginDate),
     lastDailyChallengeDate: latestDate(a.lastDailyChallengeDate, b.lastDailyChallengeDate),
   };

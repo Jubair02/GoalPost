@@ -24,11 +24,11 @@ export function StatsPage() {
   const [standing, setStanding] = useState<{ rank: number; total: number } | null>(null);
   useEffect(() => {
     let alive = true;
-    getSeasonStanding(p.monthlyScore).then((s) => alive && setStanding(s));
+    getSeasonStanding(p.seasonDailyScore).then((s) => alive && setStanding(s));
     return () => {
       alive = false;
     };
-  }, [p.monthlyScore]);
+  }, [p.seasonDailyScore]);
 
   const rankValue = standing && standing.rank > 0 ? `#${standing.rank}` : "—";
   const rankSub = standing

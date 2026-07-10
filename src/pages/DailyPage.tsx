@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { LeaderboardEntry, QuizResult } from "../types";
 import { buildDailyQuiz, msUntilNextDaily, todayKey, monthKey, monthLabel, daysUntilNextMonth } from "../lib/daily";
 import { coinsFromScore, xpFromScore } from "../lib/quizEngine";
-import { leaderboardIsLive, subscribeSeasonLeaderboard } from "../services/leaderboard";
+import { leaderboardIsLive, subscribeSeasonLeaderboard, submitDailySeasonScore } from "../services/leaderboard";
 import { useQuiz } from "../hooks/useQuiz";
 import { usePlayerStore } from "../store/playerStore";
 import { useOutcomeToasts } from "../hooks/useOutcomeToasts";
@@ -102,16 +102,16 @@ function DailyLobby({ alreadyDone, result, onStart }: { alreadyDone: boolean; re
   const dailyBest = usePlayerStore((s) => s.dailyChallengeBest);
   const dailyScore = usePlayerStore((s) => s.dailyChallengeScore);
   const lastDaily = usePlayerStore((s) => s.lastDailyChallengeDate);
-  const leaderboardMonth = usePlayerStore((s) => s.leaderboardMonth);
-  const monthlyScore = usePlayerStore((s) => s.monthlyScore);
+  const seasonDailyMonth = usePlayerStore((s) => s.seasonDailyMonth);
+  const seasonDailyScore = usePlayerStore((s) => s.seasonDailyScore);
 
   const playedToday = alreadyDone || result !== null;
   // Today's single-day score, shown as the day's contribution to the season.
   const todayStored = lastDaily === todayKey() && Number.isFinite(dailyScore) ? dailyScore : null;
   const todayScore = result?.score ?? todayStored ?? 0;
 
-  // The leaderboard ranks by the running SEASON total (this month's cumulative).
-  const seasonTotal = leaderboardMonth === monthKey() ? monthlyScore : 0;
+  // The leaderboard ranks by the running SEASON total of daily scores.
+  const seasonTotal = seasonDailyMonth === monthKey() ? seasonDailyScore : 0;
   const playerScore = seasonTotal > 0 ? seasonTotal : null;
 
   const { entries: board, loading: boardLoading, live, available } = useSeasonLeaderboard(playerScore, name || "You", avatar);
@@ -237,8 +237,11 @@ function DailyMatch({ onFinish }: { onFinish: (r: QuizResult) => void }) {
     setResult(r);
     markDailyDone(r.score);
     notify(applyResult(r));
-    // The season total is published to the global leaderboard centrally in Layout
-    // (fires whenever monthlyScore changes, for every mode).
+    // Publish the updated daily-season total to the global leaderboard. The
+    // Daily Challenge is the only mode that feeds the board; markDailyDone has
+    // already accumulated seasonDailyScore, so read it back and submit.
+    const st = usePlayerStore.getState();
+    void submitDailySeasonScore(st.seasonDailyScore, st.name, st.avatar, todayKey());
   }, [quiz.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (result) {
