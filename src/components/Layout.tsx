@@ -43,6 +43,10 @@ export function Layout() {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    // Keep the mobile browser chrome (address bar / status bar / notch) in sync
+    // with the app theme — it's driven by the theme-color meta, not CSS.
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "light" ? "#f2f6f3" : "#060d0a");
   }, [theme]);
 
   // Personalize the app accent to the player's chosen avatar colour.
