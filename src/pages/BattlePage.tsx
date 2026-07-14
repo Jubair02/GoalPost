@@ -13,6 +13,7 @@ import { QuestionCard } from "../components/QuestionCard";
 import { ResultScreen } from "../components/ResultScreen";
 import { CountdownOverlay } from "../components/CountdownOverlay";
 import { VersusHud } from "../components/VersusHud";
+import { FriendBattle } from "../components/FriendBattle";
 import { Avatar } from "../components/Avatar";
 import { MediaBg } from "../components/MediaBg";
 import { IMG } from "../lib/assets";
@@ -25,8 +26,11 @@ export function BattlePage() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [opponent, setOpponent] = useState<Opponent | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [friend, setFriend] = useState(false);
   const matchHistory = usePlayerStore((s) => s.matchHistory);
   const battles = useMemo(() => matchHistory.filter((m) => m.mode === "battle").slice(0, 8), [matchHistory]);
+
+  if (friend) return <FriendBattle onExit={() => setFriend(false)} />;
 
   const findMatch = () => {
     sfx.click();
@@ -83,8 +87,11 @@ export function BattlePage() {
               <button onClick={findMatch} className="btn-primary focus-ring mt-8 w-full py-4 text-lg">
                 🔍 Find Opponent
               </button>
+              <button onClick={() => { sfx.click(); setFriend(true); }} className="btn-ghost focus-ring mt-3 w-full py-3.5">
+                🔗 Play a Friend
+              </button>
               <p className="mt-3 text-center text-xs text-(--text-faint)">
-                Win streaks earn achievement badges — expert wins earn the rarest.
+                Quick match is vs a bot. “Play a Friend” is a live 1v1 by match code.
               </p>
             </>
           )}
